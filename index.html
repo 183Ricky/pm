@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대시보드 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <!-- 대시보드 상단 지표 -->
+  <section class="grid-4 section-gap" id="stats-grid">
+    <div class="stat-card c-indigo"><div class="icon-wrap"><i class="fa-solid fa-users"></i></div><div><div class="label">고객 수</div><div class="value" id="stat-customers">-</div></div></div>
+    <div class="stat-card c-cyan"><div class="icon-wrap"><i class="fa-solid fa-boxes-stacked"></i></div><div><div class="label">상품 수</div><div class="value" id="stat-products">-</div></div></div>
+    <div class="stat-card c-green"><div class="icon-wrap"><i class="fa-solid fa-receipt"></i></div><div><div class="label">구매 수</div><div class="value" id="stat-purchases">-</div></div></div>
+    <div class="stat-card c-amber"><div class="icon-wrap"><i class="fa-solid fa-bell"></i></div><div><div class="label">대기 알림</div><div class="value" id="stat-pending">-</div></div></div>
+  </section>
+
+  <section class="grid-2 section-gap">
+    <div class="card">
+      <div class="card-head">
+        <div><h2>월별 매출 추이</h2><div class="sub">최근 6개월 구매 총액</div></div>
+      </div>
+      <div style="height:260px;"><canvas id="salesChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h2>고객 상태 분포</h2><div class="sub">활성 / 비활성 / 일시중지</div></div>
+      </div>
+      <div style="height:260px;"><canvas id="statusChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="card section-gap" style="background:linear-gradient(120deg,#101430,#1c2452 60%,#2f2f70);border:none;color:#fff;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+      <div>
+        <div class="pill" style="background:rgba(255,255,255,.12);color:#fff;margin-bottom:10px;"><i class="fa-solid fa-circle-question"></i> 제품 FAQ</div>
+        <h2 style="margin:0 0 6px;font-size:19px;">궁금한 점, 키워드로 바로 검색하세요</h2>
+        <p style="margin:0;color:#c3c7ec;font-size:13px;">간 부담, 임산부 섭취, 재구매 등 자주 묻는 질문에 대한 답변을 즉시 확인할 수 있어요.</p>
+      </div>
+      <a class="btn primary" href="faq.html"><i class="fa-solid fa-magnifying-glass"></i> FAQ 검색 바로가기</a>
+    </div>
+  </section>
+
+  <section class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <div><h2>예정 알림</h2><div class="sub">발송 대기중인 리마인더</div></div>
+        <button class="btn primary" id="btn-generate-reminders"><i class="fa-solid fa-wand-magic-sparkles"></i> 리마인더 생성</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>고객</th><th>제목</th><th>예정일</th><th>상태</th></tr></thead>
+          <tbody id="upcoming-body"><tr><td colspan="4" class="empty">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h2>최근 등록 고객</h2><div class="sub">최신 등록 8건</div></div>
+        <a class="btn" href="customer-form.html"><i class="fa-solid fa-user-plus"></i> 신규 등록</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>PM번호</th><th>이름</th><th>가입일</th><th></th></tr></thead>
+          <tbody id="recent-customers-body"><tr><td colspan="4" class="empty">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/reminders-engine.js"></script>
+<script>
+mountLayout({
+  activeKey: 'dashboard',
+  title: '대시보드',
+  subtitle: '고객번호 · 구매 · 오토십 · 복용주기 알림 관리',
+});
+
+let salesChart, statusChart;
+
+async function loadDashboard() {
+  const [customersRes, productsRes, purchasesRes, queueRes] = await Promise.all([
+    Api.list('customers', { limit: 1000 }),
+    Api.list('products', { limit: 1000 }),
+    Api.list('purchases', { limit: 1000 }),
+    Api.list('notification_queue', { limit: 1000 }),
+  ]);
+
+  const customers = customersRes.data;
+  const products = productsRes.data;
+  const purchases = purchasesRes.data;
+  const queue = queueRes.data;
+  const pending = queue.filter(q => q.send_status === 'pending');
+
+  document.getElementById('stat-customers').textContent = customers.length;
+  document.getElementById('stat-products').textContent = products.length;
+  document.getElementById('stat-purchases').textContent = purchases.length;
+  document.getElementById('stat-pending').textContent = pending.length;
+
+  // upcoming reminders (top 10 sorted by scheduled_at)
+  const upcoming = queue.slice().sort((a, b) => (toTs(a.scheduled_at) || 0) - (toTs(b.scheduled_at) || 0)).slice(0, 10);
+  const upcomingBody = document.getElementById('upcoming-body');
+  upcomingBody.innerHTML = upcoming.length ? upcoming.map(row => `
+    <tr>
+      <td>${escapeHtml(row.customer_name)}</td>
+      <td>${escapeHtml(row.title)}</td>
+      <td>${fmtDate(row.scheduled_at)}</td>
+      <td>${sendStatusBadge(row.send_status)}</td>
+    </tr>`).join('') : emptyRow(4, '예정 알림이 없습니다.', 'fa-bell-slash');
+
+  // recent customers (top 8 by created_at desc)
+  const recent = customers.slice().sort((a, b) => (b.created_at || 0) - (a.created_at || 0)).slice(0, 8);
+  const recentBody = document.getElementById('recent-customers-body');
+  recentBody.innerHTML = recent.length ? recent.map(row => `
+    <tr>
+      <td><strong>${escapeHtml(row.pm_member_no)}</strong></td>
+      <td>${escapeHtml(row.customer_name)}</td>
+      <td>${fmtDate(row.joined_pm_at)}</td>
+      <td><a href="customer-detail.html?id=${row.id}">상세 <i class="fa-solid fa-chevron-right small"></i></a></td>
+    </tr>`).join('') : emptyRow(4, '등록된 고객이 없습니다.', 'fa-user-slash');
+
+  // Sales chart: last 6 months totals
+  const monthMap = {};
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.push(key);
+    monthMap[key] = 0;
+  }
+  purchases.forEach(p => {
+    if (!p.purchase_date) return;
+    const d = new Date(p.purchase_date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (key in monthMap) monthMap[key] += Number(p.total_amount || 0);
+  });
+  const ctx1 = document.getElementById('salesChart').getContext('2d');
+  if (salesChart) salesChart.destroy();
+  salesChart = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [{ label: '매출액', data: months.map(m => monthMap[m]), backgroundColor: '#4f46e5', borderRadius: 8, maxBarThickness: 42 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => krw(c.parsed.y) } } },
+      scales: { y: { ticks: { callback: (v) => v.toLocaleString() } } },
+    },
+  });
+
+  // Status chart
+  const statusCount = { active: 0, inactive: 0, paused: 0 };
+  customers.forEach(c => { if (c.status in statusCount) statusCount[c.status] += 1; });
+  const ctx2 = document.getElementById('statusChart').getContext('2d');
+  if (statusChart) statusChart.destroy();
+  statusChart = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['활성', '비활성', '일시중지'],
+      datasets: [{ data: [statusCount.active, statusCount.inactive, statusCount.paused], backgroundColor: ['#12b76a', '#98a2b3', '#f79009'], borderWidth: 0 }],
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '65%' },
+  });
+}
+
+document.getElementById('btn-generate-reminders').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 생성 중...';
+  try {
+    const created = await generateReminders();
+    toast(`리마인더 ${created}건이 생성되었습니다.`);
+    await loadDashboard();
+  } catch (err) {
+    console.error(err);
+    toast('리마인더 생성 중 오류가 발생했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> 리마인더 생성';
+  }
+});
+
+loadDashboard().catch(err => { console.error(err); toast('데이터를 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

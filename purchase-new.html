@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구매 등록 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card" style="max-width:1100px;margin:0 auto;">
+    <div class="card-head"><div><h2>구매 등록</h2><div class="sub">고객의 신규 구매 내역을 등록합니다.</div></div></div>
+    <form id="purchase-form">
+      <div class="form-grid three-col compact section-gap">
+        <label class="field"><span>고객 <span class="req">*</span></span><select name="customer_id" id="customer-select" required></select></label>
+        <label class="field"><span>구매일 <span class="req">*</span></span><input type="date" name="purchase_date" required></label>
+        <label class="field"><span>채널</span>
+          <select name="channel">
+            <option value="manual">수동입력 (manual)</option>
+            <option value="pm_online">PM 온라인 (pm_online)</option>
+            <option value="dsc">DSC</option>
+          </select>
+        </label>
+      </div>
+      <label class="field section-gap"><span>메모</span><input type="text" name="memo"></label>
+
+      <div class="card-head" style="margin-top:8px;">
+        <div><h2 style="font-size:15px;">구매 항목</h2></div>
+        <button type="button" class="btn" id="add-row-btn"><i class="fa-solid fa-plus"></i> 행 추가</button>
+      </div>
+      <div id="line-items"></div>
+      <div class="line-total-badge" id="grand-total">총액: 0원</div>
+
+      <div class="form-actions" style="margin-top:18px;">
+        <button type="submit" class="btn primary" id="save-btn"><i class="fa-solid fa-floppy-disk"></i> 구매 저장</button>
+        <a class="btn" href="purchases.html">취소</a>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+mountLayout({ activeKey: 'purchase-new', title: '구매 등록', subtitle: '상품 라인을 추가하고 구매를 등록합니다.' });
+
+let products = [];
+let customers = [];
+const lineItemsEl = document.getElementById('line-items');
+const form = document.getElementById('purchase-form');
+
+function productOptionsHtml() {
+  return `<option value="">상품 선택</option>` + products.map(p => `
+    <option value="${p.id}"
+      data-name="${escapeHtml(p.item_name)}"
+      data-consumer="${p.consumer_price || 0}"
+      data-member="${p.member_price || ''}"
+      data-autoship="${p.autoship_price || ''}"
+      data-cycle="${p.cycle_days || 30}">${escapeHtml(p.item_name)}</option>`).join('');
+}
+
+function createRow() {
+  const row = document.createElement('div');
+  row.className = 'line-item-row';
+  row.innerHTML = `
+    <label class="field"><span>상품</span>
+      <select class="product-select" required>${productOptionsHtml()}</select>
+    </label>
+    <label class="field"><span>수량</span><input type="number" class="qty-input" value="1" min="1" step="1"></label>
+    <label class="field"><span>가격유형</span>
+      <select class="price-type-select">
+        <option value="consumer">소비자가</option>
+        <option value="member">회원가</option>
+        <option value="autoship">오토십가</option>
+      </select>
+    </label>
+    <label class="field"><span>단가</span><input type="number" class="unit-price-input" value="0" min="0"></label>
+    <label class="field"><span>복용 시작일</span><input type="date" class="intake-start-input"></label>
+    <label class="field"><span>주기일수</span><input type="number" class="cycle-input" value="30" min="1"></label>
+    <button type="button" class="btn danger icon-only remove-row"><i class="fa-solid fa-trash"></i></button>
+  `;
+  row.querySelector('.product-select').addEventListener('change', () => { syncPrice(row); updateTotal(); });
+  row.querySelector('.price-type-select').addEventListener('change', () => { syncPrice(row); updateTotal(); });
+  row.querySelector('.qty-input').addEventListener('input', updateTotal);
+  row.querySelector('.unit-price-input').addEventListener('input', updateTotal);
+  row.querySelector('.remove-row').addEventListener('click', () => { row.remove(); updateTotal(); });
+  lineItemsEl.appendChild(row);
+}
+
+function syncPrice(row) {
+  const select = row.querySelector('.product-select');
+  const opt = select.selectedOptions[0];
+  if (!opt || !opt.dataset.consumer) return;
+  const priceType = row.querySelector('.price-type-select').value;
+  const consumer = opt.dataset.consumer || 0;
+  const member = opt.dataset.member || consumer;
+  const autoship = opt.dataset.autoship || consumer;
+  const cycle = opt.dataset.cycle || 30;
+  row.querySelector('.unit-price-input').value = priceType === 'member' ? member : (priceType === 'autoship' ? autoship : consumer);
+  row.querySelector('.cycle-input').value = cycle;
+}
+
+function updateTotal() {
+  let total = 0;
+  lineItemsEl.querySelectorAll('.line-item-row').forEach(row => {
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const price = parseFloat(row.querySelector('.unit-price-input').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('grand-total').textContent = `총액: ${krw(total)}`;
+}
+
+document.getElementById('add-row-btn').addEventListener('click', createRow);
+
+async function init() {
+  const [productsRes, customersRes] = await Promise.all([
+    Api.list('products', { limit: 1000 }),
+    Api.list('customers', { limit: 1000 }),
+  ]);
+  products = productsRes.data.slice().sort((a, b) => (a.item_name || '').localeCompare(b.item_name || ''));
+  customers = customersRes.data.slice().sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''));
+
+  document.getElementById('customer-select').innerHTML = customers.length
+    ? customers.map(c => `<option value="${c.id}">${escapeHtml(c.customer_name)} / ${escapeHtml(c.pm_member_no)}</option>`).join('')
+    : '<option value="">등록된 고객이 없습니다</option>';
+
+  createRow();
+  createRow();
+  form.purchase_date.value = todayStr();
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const saveBtn = document.getElementById('save-btn');
+  const customerId = form.customer_id.value;
+  if (!customerId) { toast('고객을 선택해주세요.', 'error'); return; }
+  const purchaseDate = form.purchase_date.value;
+  const customer = customers.find(c => c.id === customerId);
+
+  const rows = Array.from(lineItemsEl.querySelectorAll('.line-item-row')).map(row => {
+    const productId = row.querySelector('.product-select').value;
+    if (!productId) return null;
+    const product = products.find(p => p.id === productId);
+    return {
+      product_id: productId,
+      product_name: product ? product.item_name : '',
+      quantity: parseFloat(row.querySelector('.qty-input').value) || 1,
+      unit_price: parseInt(row.querySelector('.unit-price-input').value, 10) || 0,
+      price_type: row.querySelector('.price-type-select').value,
+      intake_start: row.querySelector('.intake-start-input').value || null,
+      cycle_days: row.querySelector('.cycle-input').value ? parseInt(row.querySelector('.cycle-input').value, 10) : null,
+    };
+  }).filter(Boolean);
+
+  if (!rows.length) { toast('최소 1개 이상의 구매 항목이 필요합니다.', 'error'); return; }
+
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 저장 중...';
+  try {
+    let total = 0;
+    rows.forEach(r => { total += r.quantity * r.unit_price; });
+
+    const purchase = await Api.create('purchases', {
+      customer_id: customerId,
+      customer_name: customer ? customer.customer_name : '',
+      pm_member_no: customer ? customer.pm_member_no : '',
+      purchase_date: purchaseDate,
+      channel: form.channel.value,
+      status: 'completed',
+      total_amount: total,
+      memo: form.memo.value.trim(),
+    });
+
+    for (const r of rows) {
+      const lineTotal = Math.round(r.quantity * r.unit_price);
+      const nextExpected = (r.intake_start && r.cycle_days) ? addDays(r.intake_start, r.cycle_days) : null;
+      const item = await Api.create('purchase_items', {
+        purchase_id: purchase.id,
+        product_id: r.product_id,
+        product_name: r.product_name,
+        quantity: r.quantity,
+        unit_price: r.unit_price,
+        price_type: r.price_type,
+        total_price: lineTotal,
+        intake_start_date: r.intake_start,
+        cycle_days: r.cycle_days,
+        next_expected_date: nextExpected,
+      });
+      if (r.intake_start && r.cycle_days) {
+        // 구매 항목의 복용 시작일 + 주기를 기준으로 "재구매 알림" 플랜을 자동 생성합니다.
+        // (실제 매일 복용 알림이 필요하면 고객 상세 페이지에서 "복용 알림"으로 별도 등록하세요.)
+        const reminderDaysBefore = 5;
+        const nextReminder = addDays(r.intake_start, r.cycle_days - reminderDaysBefore);
+        await Api.create('intake_plans', {
+          customer_id: customerId,
+          customer_name: customer ? customer.customer_name : '',
+          product_id: r.product_id,
+          product_name: r.product_name,
+          purchase_item_id: item.id,
+          plan_type: 'repurchase',
+          start_date: r.intake_start,
+          cycle_days: r.cycle_days,
+          reminder_days_before: reminderDaysBefore,
+          next_reminder_date: nextReminder,
+          status: 'active',
+          memo: '구매 등록 시 자동 생성 (재구매 알림)',
+        });
+      }
+    }
+
+    await Api.update('customers', customerId, { last_purchase_at: purchaseDate });
+
+    toast('구매가 등록되었습니다.');
+    location.href = 'purchases.html';
+  } catch (err) {
+    console.error(err);
+    toast('구매 등록 중 오류가 발생했습니다.', 'error');
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 구매 저장';
+  }
+});
+
+init().catch(err => { console.error(err); toast('초기 데이터를 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고객 CSV 내보내기 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card" style="max-width:720px;margin:0 auto;text-align:center;padding:48px 32px;">
+    <div style="font-size:44px;color:var(--primary);margin-bottom:14px;"><i class="fa-solid fa-file-csv"></i></div>
+    <h2 style="margin:0 0 8px;">고객 목록 CSV 내보내기</h2>
+    <p class="muted" style="margin:0 0 24px;">현재 등록된 전체 고객 데이터를 CSV 파일로 다운로드합니다.</p>
+    <button class="btn primary" id="download-btn" style="padding:13px 28px;font-size:14px;">
+      <i class="fa-solid fa-download"></i> customers.csv 다운로드
+    </button>
+    <div id="count-info" class="muted small" style="margin-top:16px;"></div>
+  </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+mountLayout({ activeKey: '', title: '고객 CSV 내보내기', subtitle: '고객 데이터를 CSV 형식으로 저장합니다.' });
+
+async function loadCount() {
+  const res = await Api.list('customers', { limit: 1000 });
+  document.getElementById('count-info').textContent = `총 ${res.data.length}명의 고객이 내보내기 대상입니다.`;
+  return res.data;
+}
+
+function toCsvValue(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+document.getElementById('download-btn').addEventListener('click', async () => {
+  const res = await Api.list('customers', { limit: 1000 });
+  const rows = res.data;
+  const header = ['PM고유번호', '이름', '전화번호', '가입일', '유형', '상태', '선호채널', '최근구매일', '다음후속일', '메모'];
+  const lines = [header.join(',')];
+  rows.forEach(r => {
+    lines.push([
+      r.pm_member_no, r.customer_name, r.phone_number, fmtDate(r.joined_pm_at),
+      r.customer_type, r.status, r.preferred_channel, fmtDate(r.last_purchase_at),
+      fmtDate(r.next_followup_at), r.memo,
+    ].map(toCsvValue).join(','));
+  });
+  const csv = '\uFEFF' + lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'customers.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('CSV 파일이 다운로드되었습니다.');
+});
+
+loadCount().catch(err => { console.error(err); toast('고객 수를 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

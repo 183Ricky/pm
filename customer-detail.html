@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고객 상세 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card hero-card section-gap">
+    <div>
+      <div class="pill" id="hero-pm-no">PM 번호 -</div>
+      <h2 id="hero-name">불러오는 중...</h2>
+      <p id="hero-sub">-</p>
+    </div>
+    <div class="hero-actions">
+      <a class="btn" id="edit-link" href="#"><i class="fa-solid fa-pen"></i> 고객 수정</a>
+      <button class="btn" id="copy-btn"><i class="fa-regular fa-copy"></i> 번호 복사</button>
+      <a class="btn primary" href="https://m.pmi-korea.com/auth/login.do" target="_blank" rel="noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> PM 로그인 열기</a>
+    </div>
+  </section>
+
+  <section class="grid-2 section-gap">
+    <div class="card">
+      <div class="card-head"><h2>구매 이력</h2><a class="btn" href="purchase-new.html"><i class="fa-solid fa-cart-plus"></i> 구매 등록</a></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>구매일</th><th>채널</th><th>상태</th><th>금액</th></tr></thead>
+          <tbody id="purchases-body"><tr><td colspan="4" class="empty">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>상담 메모</h2></div>
+      <form id="note-form" class="form-grid compact" style="margin-bottom:14px;">
+        <textarea name="note_body" rows="3" placeholder="상담/후속 메모" required></textarea>
+        <div class="form-grid two-col compact">
+          <input type="date" name="next_action_date">
+          <button class="btn primary" type="submit"><i class="fa-solid fa-plus"></i> 메모 추가</button>
+        </div>
+      </form>
+      <div class="notes-list" id="notes-list"><div class="empty-box">불러오는 중...</div></div>
+    </div>
+  </section>
+
+  <section class="grid-2">
+    <div class="card">
+      <div class="card-head"><h2>오토십 등록</h2></div>
+      <form id="subscription-form" class="form-grid two-col compact" style="margin-bottom:16px;">
+        <label class="field"><span>상품</span><select name="product_id" id="sub-product-select" required></select></label>
+        <label class="field"><span>결제일</span><input type="number" name="billing_day" min="1" max="31" value="5"></label>
+        <label class="field"><span>시작일</span><input type="date" name="start_date" required></label>
+        <label class="field"><span>할인율(%)</span><input type="number" step="0.01" name="discount_rate" value="0"></label>
+        <label class="field"><span>상태</span><select name="status"><option value="active">활성</option><option value="paused">일시중지</option></select></label>
+        <label class="field"><span>메모</span><input type="text" name="memo"></label>
+        <div class="full-col"><button class="btn primary" type="submit"><i class="fa-solid fa-plus"></i> 오토십 추가</button></div>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>상품</th><th>다음 결제일</th><th>상태</th></tr></thead>
+          <tbody id="subscriptions-body"><tr><td colspan="3" class="empty">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><h2>복용/재구매 알림 플랜</h2><div class="sub">알림 유형에 따라 입력 항목이 달라집니다.</div></div>
+      </div>
+
+      <div class="plan-type-toggle" role="tablist">
+        <button type="button" class="plan-type-btn active" data-type="intake" id="tab-intake">
+          <i class="fa-solid fa-pills"></i> 복용 알림 <span class="muted small">(분 단위)</span>
+        </button>
+        <button type="button" class="plan-type-btn" data-type="repurchase" id="tab-repurchase">
+          <i class="fa-solid fa-cart-arrow-down"></i> 재구매 알림 <span class="muted small">(일 단위)</span>
+        </button>
+      </div>
+
+      <form id="intake-form" class="form-grid two-col compact" style="margin-bottom:16px;">
+        <input type="hidden" name="plan_type" value="intake">
+        <label class="field full-col"><span>상품</span><select name="product_id" id="intake-product-select" required></select></label>
+
+        <!-- 복용 알림 전용 필드 -->
+        <label class="field plan-field-intake"><span>매일 복용 시각</span><input type="time" name="daily_intake_time" value="08:00"></label>
+        <label class="field plan-field-intake"><span>몇 분 전 알림</span>
+          <select name="reminder_minutes_before">
+            <option value="5">5분 전</option>
+            <option value="10" selected>10분 전</option>
+            <option value="15">15분 전</option>
+            <option value="30">30분 전</option>
+          </select>
+        </label>
+        <p class="muted small plan-field-intake full-col" style="margin:-4px 0 0;"><i class="fa-solid fa-circle-info"></i> 복용 알림은 이 브라우저 탭이 열려있는 동안 실시간으로 감지되어 팝업/브라우저 알림으로 표시됩니다.</p>
+
+        <!-- 재구매 알림 전용 필드 -->
+        <label class="field plan-field-repurchase" style="display:none;"><span>시작일</span><input type="date" name="start_date"></label>
+        <label class="field plan-field-repurchase" style="display:none;"><span>재구매 주기(일)</span><input type="number" name="cycle_days" value="28"></label>
+        <label class="field plan-field-repurchase" style="display:none;"><span>며칠 전 알림</span>
+          <select name="reminder_days_before">
+            <option value="3">3일 전</option>
+            <option value="5" selected>5일 전</option>
+            <option value="7">7일 전</option>
+          </select>
+        </label>
+
+        <label class="field"><span>상태</span><select name="status"><option value="active">활성</option><option value="stopped">중지</option></select></label>
+        <label class="field"><span>메모</span><input type="text" name="memo"></label>
+        <div class="full-col"><button class="btn primary" type="submit"><i class="fa-solid fa-plus"></i> 플랜 추가</button></div>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>유형</th><th>상품</th><th>다음 알림</th><th>상태</th></tr></thead>
+          <tbody id="intake-body"><tr><td colspan="4" class="empty">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 복용 알림 팝업 (브라우저가 열려있는 동안 실시간 감지) -->
+<div class="modal-backdrop" id="intake-alert-backdrop">
+  <div class="modal-box" style="max-width:420px;text-align:center;">
+    <div style="font-size:40px;color:var(--accent);margin-bottom:10px;"><i class="fa-solid fa-pills"></i></div>
+    <h3 id="intake-alert-title" style="margin:0 0 8px;">복용 알림</h3>
+    <p id="intake-alert-body" class="muted" style="margin:0 0 20px;"></p>
+    <button class="btn primary" style="width:100%;" onclick="closeModal('intake-alert-backdrop')">확인</button>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/ui.js"></script>
+<script>
+mountLayout({ activeKey: 'customers', title: '고객 상세', subtitle: '구매 이력과 후속 관리 현황을 확인합니다.' });
+
+const params = new URLSearchParams(location.search);
+const customerId = params.get('id');
+if (!customerId) { location.href = 'customers.html'; }
+
+let products = [];
+
+async function loadCustomer() {
+  const c = await Api.get('customers', customerId);
+  document.getElementById('hero-pm-no').textContent = `PM 번호 ${c.pm_member_no}`;
+  document.getElementById('hero-name').textContent = c.customer_name;
+  document.getElementById('hero-sub').textContent = `전화번호 ${c.phone_number || '-'} · 가입일 ${fmtDate(c.joined_pm_at)} · 상태 ${customerTypeLabel(c.customer_type)}`;
+  document.getElementById('edit-link').href = `customer-form.html?id=${c.id}`;
+  document.getElementById('copy-btn').onclick = () => {
+    navigator.clipboard.writeText(c.pm_member_no);
+    toast('PM 고유번호가 복사되었습니다.');
+  };
+  return c;
+}
+
+async function loadProducts() {
+  const res = await Api.list('products', { limit: 1000 });
+  products = res.data;
+  const optHtml = products.map(p => `<option value="${p.id}">${escapeHtml(p.item_name)}</option>`).join('');
+  document.getElementById('sub-product-select').innerHTML = optHtml;
+  document.getElementById('intake-product-select').innerHTML = optHtml;
+}
+
+async function loadPurchases() {
+  const res = await Api.list('purchases', { limit: 1000 });
+  const rows = res.data.filter(p => p.customer_id === customerId)
+    .sort((a, b) => (toTs(b.purchase_date) || 0) - (toTs(a.purchase_date) || 0));
+  document.getElementById('purchases-body').innerHTML = rows.length ? rows.map(row => `
+    <tr><td>${fmtDate(row.purchase_date)}</td><td>${channelLabel(row.channel)}</td><td>${purchaseStatusBadge(row.status)}</td><td>${krw(row.total_amount)}</td></tr>
+  `).join('') : emptyRow(4, '구매 이력이 없습니다.', 'fa-receipt');
+}
+
+async function loadNotes() {
+  const res = await Api.list('notes', { limit: 1000 });
+  const rows = res.data.filter(n => n.customer_id === customerId).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+  const list = document.getElementById('notes-list');
+  list.innerHTML = rows.length ? rows.map(row => `
+    <div class="note-item">
+      <div>${escapeHtml(row.note_body)}</div>
+      <div class="meta">다음 일정 ${fmtDate(row.next_action_date)} · ${row.created_at ? new Date(row.created_at).toLocaleString('ko-KR') : '-'}</div>
+    </div>`).join('') : '<div class="empty-box"><i class="fa-regular fa-note-sticky"></i>메모가 없습니다.</div>';
+}
+
+async function loadSubscriptions() {
+  const res = await Api.list('subscriptions', { limit: 1000 });
+  const rows = res.data.filter(s => s.customer_id === customerId).sort((a, b) => (toTs(a.next_billing_date) || 0) - (toTs(b.next_billing_date) || 0));
+  document.getElementById('subscriptions-body').innerHTML = rows.length ? rows.map(row => `
+    <tr><td>${escapeHtml(row.product_name)}</td><td>${fmtDate(row.next_billing_date)}</td><td>${row.status === 'active' ? '<span class="badge b-green">활성</span>' : '<span class="badge b-amber">일시중지</span>'}</td></tr>
+  `).join('') : emptyRow(3, '등록된 오토십이 없습니다.', 'fa-repeat');
+}
+
+function intakePlanNextInfo(row) {
+  if (row.plan_type === 'repurchase') {
+    return fmtDate(row.next_reminder_date);
+  }
+  return `매일 ${row.daily_intake_time || '-'} (${row.reminder_minutes_before || 10}분 전 알림)`;
+}
+
+function intakePlanTypeBadge(planType) {
+  return planType === 'repurchase'
+    ? '<span class="badge b-cyan"><i class="fa-solid fa-cart-arrow-down"></i> 재구매</span>'
+    : '<span class="badge b-indigo"><i class="fa-solid fa-pills"></i> 복용</span>';
+}
+
+async function loadIntakePlans() {
+  const res = await Api.list('intake_plans', { limit: 1000 });
+  intakePlansCache = res.data.filter(p => p.customer_id === customerId).sort((a, b) => {
+    const at = a.plan_type === 'repurchase' ? (toTs(a.next_reminder_date) || 0) : 0;
+    const bt = b.plan_type === 'repurchase' ? (toTs(b.next_reminder_date) || 0) : 0;
+    return at - bt;
+  });
+  document.getElementById('intake-body').innerHTML = intakePlansCache.length ? intakePlansCache.map(row => `
+    <tr>
+      <td>${intakePlanTypeBadge(row.plan_type)}</td>
+      <td>${escapeHtml(row.product_name)}</td>
+      <td>${intakePlanNextInfo(row)}</td>
+      <td>${row.status === 'active' ? '<span class="badge b-green">활성</span>' : '<span class="badge b-gray">중지</span>'}</td>
+    </tr>
+  `).join('') : emptyRow(4, '등록된 플랜이 없습니다.', 'fa-pills');
+}
+
+document.getElementById('note-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const body = f.note_body.value.trim();
+  if (!body) return;
+  await Api.create('notes', { customer_id: customerId, note_body: body, next_action_date: f.next_action_date.value || null });
+  f.reset();
+  toast('메모가 추가되었습니다.');
+  loadNotes();
+});
+
+document.getElementById('subscription-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const productId = f.product_id.value;
+  const product = products.find(p => p.id === productId);
+  const billingDay = parseInt(f.billing_day.value, 10) || 1;
+  const startDate = f.start_date.value;
+  if (!startDate) return;
+  const start = new Date(startDate);
+  function computeNextBilling(fromYear, fromMonth) {
+    const lastDay = new Date(fromYear, fromMonth + 1, 0).getDate();
+    const day = Math.min(Math.max(billingDay, 1), lastDay);
+    return new Date(fromYear, fromMonth, day);
+  }
+  let next = computeNextBilling(start.getFullYear(), start.getMonth());
+  if (next < start) {
+    let m = start.getMonth() + 1, y = start.getFullYear();
+    if (m > 11) { m = 0; y += 1; }
+    next = computeNextBilling(y, m);
+  }
+  await Api.create('subscriptions', {
+    customer_id: customerId,
+    customer_name: document.getElementById('hero-name').textContent,
+    product_id: productId,
+    product_name: product ? product.item_name : '',
+    billing_day: billingDay,
+    start_date: startDate,
+    next_billing_date: next.toISOString().slice(0, 10),
+    status: f.status.value,
+    discount_rate: parseFloat(f.discount_rate.value) || 0,
+    memo: f.memo.value.trim(),
+  });
+  f.reset();
+  f.billing_day.value = 5;
+  f.discount_rate.value = 0;
+  toast('오토십이 등록되었습니다.');
+  loadSubscriptions();
+});
+
+// ---- 복용/재구매 플랜 탭 전환 ----
+let currentPlanType = 'intake';
+const intakeFieldEls = document.querySelectorAll('.plan-field-intake');
+const repurchaseFieldEls = document.querySelectorAll('.plan-field-repurchase');
+const intakeForm = document.getElementById('intake-form');
+
+function switchPlanType(type) {
+  currentPlanType = type;
+  intakeForm.plan_type.value = type;
+  document.getElementById('tab-intake').classList.toggle('active', type === 'intake');
+  document.getElementById('tab-repurchase').classList.toggle('active', type === 'repurchase');
+  intakeFieldEls.forEach(el => { el.style.display = type === 'intake' ? '' : 'none'; });
+  repurchaseFieldEls.forEach(el => { el.style.display = type === 'repurchase' ? '' : 'none'; });
+  if (type === 'repurchase' && !intakeForm.start_date.value) {
+    intakeForm.start_date.value = todayStr();
+  }
+}
+document.getElementById('tab-intake').addEventListener('click', () => switchPlanType('intake'));
+document.getElementById('tab-repurchase').addEventListener('click', () => switchPlanType('repurchase'));
+switchPlanType('intake');
+
+document.getElementById('intake-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const productId = f.product_id.value;
+  const product = products.find(p => p.id === productId);
+  const customerName = document.getElementById('hero-name').textContent;
+
+  if (currentPlanType === 'intake') {
+    const dailyTime = f.daily_intake_time.value || '08:00';
+    const minutesBefore = parseInt(f.reminder_minutes_before.value, 10) || 10;
+    await Api.create('intake_plans', {
+      customer_id: customerId,
+      customer_name: customerName,
+      product_id: productId,
+      product_name: product ? product.item_name : '',
+      plan_type: 'intake',
+      daily_intake_time: dailyTime,
+      reminder_minutes_before: minutesBefore,
+      last_notified_date: '',
+      status: f.status.value,
+      memo: f.memo.value.trim(),
+    });
+    toast('복용 알림 플랜이 등록되었습니다. (탭이 열려있는 동안 알림이 표시됩니다)');
+  } else {
+    const startDate = f.start_date.value || todayStr();
+    const cycleDays = parseInt(f.cycle_days.value, 10) || 28;
+    const reminderDaysBefore = parseInt(f.reminder_days_before.value, 10) || 5;
+    const nextReminder = addDays(startDate, cycleDays - reminderDaysBefore);
+    await Api.create('intake_plans', {
+      customer_id: customerId,
+      customer_name: customerName,
+      product_id: productId,
+      product_name: product ? product.item_name : '',
+      plan_type: 'repurchase',
+      start_date: startDate,
+      cycle_days: cycleDays,
+      reminder_days_before: reminderDaysBefore,
+      next_reminder_date: nextReminder,
+      status: f.status.value,
+      memo: f.memo.value.trim(),
+    });
+    toast('재구매 알림 플랜이 등록되었습니다.');
+  }
+  f.reset();
+  switchPlanType(currentPlanType);
+  intakeForm.daily_intake_time.value = '08:00';
+  intakeForm.cycle_days.value = 28;
+  loadIntakePlans();
+});
+
+// ---- 복용 알림 실시간 감지 (탭이 열려있는 동안 동작) ----
+let intakePlansCache = [];
+
+function checkDueIntakeAlerts() {
+  const now = new Date();
+  const todayKey = todayStr();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  intakePlansCache.forEach(async (plan) => {
+    if (plan.plan_type !== 'intake' || plan.status !== 'active') return;
+    if (!plan.daily_intake_time) return;
+    if (plan.last_notified_date === todayKey) return;
+
+    const [h, m] = plan.daily_intake_time.split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return;
+    const targetMinutes = h * 60 + m;
+    const minutesBefore = Number(plan.reminder_minutes_before) || 10;
+    const triggerMinutes = targetMinutes - minutesBefore;
+
+    if (nowMinutes >= triggerMinutes && nowMinutes < targetMinutes + 5) {
+      showIntakeAlert(plan);
+      await Api.update('intake_plans', plan.id, { last_notified_date: todayKey });
+      plan.last_notified_date = todayKey;
+    }
+  });
+}
+
+function showIntakeAlert(plan) {
+  const message = `${plan.customer_name}님, ${plan.product_name} 복용 시간이 ${plan.reminder_minutes_before}분 남았습니다. (예정 시각 ${plan.daily_intake_time})`;
+  document.getElementById('intake-alert-title').textContent = '복용 알림';
+  document.getElementById('intake-alert-body').textContent = message;
+  openModal('intake-alert-backdrop');
+  toast(message, 'info');
+  if (window.Notification && Notification.permission === 'granted') {
+    new Notification('복용 알림', { body: message, icon: '' });
+  }
+}
+
+if (window.Notification && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+setInterval(checkDueIntakeAlerts, 30 * 1000);
+
+async function init() {
+  await loadCustomer();
+  await loadProducts();
+  await Promise.all([loadPurchases(), loadNotes(), loadSubscriptions(), loadIntakePlans()]);
+  checkDueIntakeAlerts();
+}
+init().catch(err => { console.error(err); toast('고객 정보를 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

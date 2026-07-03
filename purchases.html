@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구매기록 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card">
+    <div class="card-head">
+      <div><h2>구매 목록</h2><div class="sub">전체 구매 이력을 확인합니다.</div></div>
+      <a class="btn primary" href="purchase-new.html"><i class="fa-solid fa-cart-plus"></i> 구매 등록</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구매일</th><th>고객</th><th>PM 번호</th><th>채널</th><th>상태</th><th>총액</th></tr></thead>
+        <tbody id="purchases-body"><tr><td colspan="6" class="empty">불러오는 중...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/ui.js"></script>
+<script>
+mountLayout({ activeKey: 'purchases', title: '구매기록', subtitle: '고객별 구매 내역을 확인합니다.' });
+
+async function loadPurchases() {
+  const res = await Api.list('purchases', { limit: 1000 });
+  const rows = res.data.slice().sort((a, b) => (toTs(b.purchase_date) || 0) - (toTs(a.purchase_date) || 0));
+  document.getElementById('purchases-body').innerHTML = rows.length ? rows.map(row => `
+    <tr>
+      <td>${fmtDate(row.purchase_date)}</td>
+      <td>${escapeHtml(row.customer_name)}</td>
+      <td>${escapeHtml(row.pm_member_no)}</td>
+      <td>${channelLabel(row.channel)}</td>
+      <td>${purchaseStatusBadge(row.status)}</td>
+      <td><strong>${krw(row.total_amount)}</strong></td>
+    </tr>`).join('') : emptyRow(6, '구매 이력이 없습니다.', 'fa-receipt');
+}
+
+loadPurchases().catch(err => { console.error(err); toast('구매 목록을 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

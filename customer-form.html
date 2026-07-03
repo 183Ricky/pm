@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고객 입력 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card" style="max-width:960px;margin:0 auto;">
+    <div class="card-head">
+      <div><h2 id="form-title">고객 등록</h2><div class="sub">필수 항목(*)을 입력해주세요.</div></div>
+    </div>
+    <form id="customer-form" class="form-grid two-col">
+      <label class="field"><span>PM 고유번호 <span class="req">*</span></span><input type="text" name="pm_member_no" required></label>
+      <label class="field"><span>고객명 <span class="req">*</span></span><input type="text" name="customer_name" required></label>
+      <label class="field"><span>전화번호</span><input type="text" name="phone_number" placeholder="010-0000-0000"></label>
+      <label class="field"><span>PM 가입일</span><input type="date" name="joined_pm_at"></label>
+      <label class="field"><span>유형</span>
+        <select name="customer_type">
+          <option value="prospect">예비고객 (prospect)</option>
+          <option value="customer">고객 (customer)</option>
+          <option value="member" selected>회원 (member)</option>
+          <option value="business_member">사업자회원 (business_member)</option>
+        </select>
+      </label>
+      <label class="field"><span>상태</span>
+        <select name="status">
+          <option value="active" selected>활성 (active)</option>
+          <option value="inactive">비활성 (inactive)</option>
+          <option value="paused">일시중지 (paused)</option>
+        </select>
+      </label>
+      <label class="field"><span>선호 채널</span>
+        <select name="preferred_channel">
+          <option value="sms" selected>SMS</option>
+          <option value="kakao">카카오</option>
+          <option value="push">푸시</option>
+          <option value="none">없음</option>
+        </select>
+      </label>
+      <label class="field"><span>다음 후속관리일</span><input type="date" name="next_followup_at"></label>
+      <label class="field full-col"><span>메모</span><textarea name="memo" rows="5"></textarea></label>
+      <div class="full-col form-actions">
+        <button type="submit" class="btn primary" id="submit-btn"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+        <a class="btn" href="customers.html">취소</a>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+mountLayout({ activeKey: 'customers', title: '고객 등록', subtitle: '새로운 고객 정보를 입력합니다.' });
+
+const params = new URLSearchParams(location.search);
+const customerId = params.get('id');
+const form = document.getElementById('customer-form');
+
+async function loadForEdit() {
+  if (!customerId) return;
+  document.getElementById('form-title').textContent = '고객 수정';
+  document.querySelector('.topbar h1').textContent = '고객 수정';
+  const c = await Api.get('customers', customerId);
+  form.pm_member_no.value = c.pm_member_no || '';
+  form.customer_name.value = c.customer_name || '';
+  form.phone_number.value = c.phone_number || '';
+  form.joined_pm_at.value = c.joined_pm_at ? fmtDate(c.joined_pm_at) : '';
+  form.customer_type.value = c.customer_type || 'member';
+  form.status.value = c.status || 'active';
+  form.preferred_channel.value = c.preferred_channel || 'sms';
+  form.next_followup_at.value = c.next_followup_at ? fmtDate(c.next_followup_at) : '';
+  form.memo.value = c.memo || '';
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  const payload = {
+    pm_member_no: form.pm_member_no.value.trim(),
+    customer_name: form.customer_name.value.trim(),
+    phone_number: form.phone_number.value.trim(),
+    joined_pm_at: form.joined_pm_at.value || null,
+    customer_type: form.customer_type.value,
+    status: form.status.value,
+    preferred_channel: form.preferred_channel.value,
+    next_followup_at: form.next_followup_at.value || null,
+    memo: form.memo.value.trim(),
+  };
+  try {
+    if (customerId) {
+      await Api.update('customers', customerId, payload);
+      toast('고객 정보가 수정되었습니다.');
+      location.href = `customer-detail.html?id=${customerId}`;
+    } else {
+      const created = await Api.create('customers', payload);
+      toast('고객이 등록되었습니다.');
+      location.href = `customer-detail.html?id=${created.id}`;
+    }
+  } catch (err) {
+    console.error(err);
+    toast('저장 중 오류가 발생했습니다.', 'error');
+    btn.disabled = false;
+  }
+});
+
+loadForEdit().catch(err => { console.error(err); toast('고객 정보를 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

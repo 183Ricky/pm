@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>제품 FAQ · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* ---------------- FAQ page ---------------- */
+  .faq-hero {
+    background: linear-gradient(120deg, #101430, #1c2452 60%, #2f2f70);
+    border: none; color: #fff; text-align: center; padding: 40px 24px;
+  }
+  .faq-hero .pill { background: rgba(255,255,255,.12); color: #fff; margin-bottom: 14px; }
+  .faq-hero h2 { margin: 0 0 8px; font-size: 26px; font-weight: 800; }
+  .faq-hero p { margin: 0 auto 22px; max-width: 560px; color: #c3c7ec; font-size: 13.5px; }
+  .faq-search-wrap { max-width: 640px; margin: 0 auto; position: relative; }
+  .faq-search-wrap i.fa-magnifying-glass {
+    position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+    color: #8b93c7; font-size: 17px;
+  }
+  #faq-search-input {
+    width: 100%; padding: 17px 50px 17px 50px; border-radius: 16px; border: none;
+    font-size: 15.5px; box-shadow: var(--shadow-pop);
+  }
+  #faq-search-input:focus { outline: none; box-shadow: 0 0 0 4px rgba(99,102,241,.45), var(--shadow-pop); }
+  #faq-clear-btn {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    border: none; background: #eef0ff; color: var(--primary); width: 32px; height: 32px;
+    border-radius: 10px; cursor: pointer; display: none; align-items: center; justify-content: center;
+  }
+  .faq-hint { margin-top: 14px; color: #9aa3d6; font-size: 12px; }
+
+  .faq-chip-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .faq-chip {
+    border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.08); color: #dfe2f7;
+    padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all .15s ease;
+  }
+  .faq-chip:hover, .faq-chip.active { background: #fff; color: var(--primary-dark); border-color: #fff; }
+
+  .faq-category-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .faq-cat-btn {
+    border: 1px solid var(--border); background: #fff; color: var(--muted);
+    padding: 8px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    transition: all .15s ease;
+  }
+  .faq-cat-btn:hover { border-color: #c7cce0; }
+  .faq-cat-btn.active { background: linear-gradient(135deg, var(--primary), #6d28d9); color: #fff; border-color: transparent; }
+
+  .faq-result-meta { color: var(--muted); font-size: 12.5px; margin: 4px 0 2px; }
+  .faq-list { display: grid; gap: 14px; }
+  .faq-item {
+    border: 1px solid var(--border); border-radius: var(--radius-lg); background: #fff;
+    box-shadow: var(--shadow-card); overflow: hidden; animation: faqPop .18s ease;
+  }
+  @keyframes faqPop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .faq-item .faq-q {
+    display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; cursor: pointer;
+  }
+  .faq-item .faq-q .q-icon {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--primary-light);
+    color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800;
+  }
+  .faq-item .faq-q .q-body { flex: 1; min-width: 0; }
+  .faq-item .faq-q .q-cat { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 3px; }
+  .faq-item .faq-q .q-text { font-size: 15px; font-weight: 700; line-height: 1.4; }
+  .faq-item .faq-q .q-chevron { flex-shrink: 0; color: var(--muted); transition: transform .18s ease; margin-top: 8px; }
+  .faq-item.open .faq-q .q-chevron { transform: rotate(180deg); color: var(--primary); }
+  .faq-item .faq-a {
+    max-height: 0; overflow: hidden; transition: max-height .22s ease;
+    background: #fafbff; border-top: 1px solid transparent;
+  }
+  .faq-item.open .faq-a { border-top: 1px solid var(--border); }
+  .faq-item .faq-a-inner { padding: 16px 20px 20px 66px; font-size: 13.5px; line-height: 1.7; color: #344054; }
+  .faq-item .faq-a-inner .faq-updated { margin-top: 10px; color: var(--muted); font-size: 11.5px; }
+  mark { background: #fde68a; color: inherit; border-radius: 4px; padding: 0 2px; }
+  .faq-source-link { margin-top: 22px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+
+  <section class="card faq-hero section-gap">
+    <div class="pill"><i class="fa-solid fa-circle-question"></i> 제품 FAQ 검색</div>
+    <h2>궁금한 점을 핵심 키워드로 검색해보세요</h2>
+    <p>섭취 방법, 제품 성분, 부작용, 임산부 섭취 여부 등 자주 묻는 질문을 입력하면 답변이 바로 나타납니다.</p>
+    <div class="faq-search-wrap">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="faq-search-input" placeholder="예) 간, 임산부, 재구매, 프로쉐이프...">
+      <button id="faq-clear-btn" title="지우기"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="faq-chip-row" id="faq-chip-row"></div>
+    <div class="faq-hint">Powered by 원본 Notion FAQ 데이터베이스 기반 · 총 <strong id="faq-total-count">-</strong>개 질문</div>
+  </section>
+
+  <section class="card section-gap">
+    <div class="card-head">
+      <div><h2>카테고리별 보기</h2><div class="sub">클릭하면 해당 분류의 질문만 모아 볼 수 있어요.</div></div>
+    </div>
+    <div class="faq-category-bar" id="faq-category-bar"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 id="faq-list-title">전체 질문</h2>
+        <div class="sub faq-result-meta" id="faq-result-meta">불러오는 중...</div>
+      </div>
+      <button class="btn small" id="faq-expand-all"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> 모두 펼치기</button>
+    </div>
+    <div class="faq-list" id="faq-list"></div>
+    <div class="faq-source-link">
+      <a class="btn ghost small" href="https://mkkceo.notion.site/291d3563ac3f811294c4e3d797adebae?v=291d3563ac3f811d830d000cb809af98" target="_blank" rel="noreferrer">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> 원본 Notion FAQ 페이지에서 더 보기
+      </a>
+    </div>
+  </section>
+
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/ui.js"></script>
+<script>
+mountLayout({ activeKey: 'faq', title: '제품 FAQ', subtitle: '핵심 키워드로 검색하면 답변이 바로 나타납니다.' });
+
+let allFaqs = [];
+let activeCategory = '';
+let allOpen = false;
+
+const POPULAR_KEYWORDS = ['간', '임산부', '재구매', '프로쉐이프', '스테비아', '갑상선', '부작용', '포장'];
+
+function renderChips() {
+  const row = document.getElementById('faq-chip-row');
+  row.innerHTML = POPULAR_KEYWORDS.map(k => `<button type="button" class="faq-chip" data-kw="${escapeHtml(k)}">${escapeHtml(k)}</button>`).join('');
+  row.querySelectorAll('.faq-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById('faq-search-input');
+      input.value = btn.dataset.kw;
+      input.dispatchEvent(new Event('input'));
+      row.querySelectorAll('.faq-chip').forEach(b => b.classList.toggle('active', b === btn));
+    });
+  });
+}
+
+function renderCategoryBar() {
+  const cats = Array.from(new Set(allFaqs.flatMap(f => (f.category || '').split(',').map(s => s.trim()).filter(Boolean))));
+  const bar = document.getElementById('faq-category-bar');
+  bar.innerHTML = `<button type="button" class="faq-cat-btn ${activeCategory === '' ? 'active' : ''}" data-cat="">전체 (${allFaqs.length})</button>` +
+    cats.map(cat => {
+      const count = allFaqs.filter(f => (f.category || '').split(',').map(s => s.trim()).includes(cat)).length;
+      return `<button type="button" class="faq-cat-btn ${activeCategory === cat ? 'active' : ''}" data-cat="${escapeHtml(cat)}">${escapeHtml(cat)} (${count})</button>`;
+    }).join('');
+  bar.querySelectorAll('.faq-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.cat;
+      applyFilters();
+    });
+  });
+}
+
+function highlight(text, query) {
+  if (!query) return escapeHtml(text || '');
+  const escaped = escapeHtml(text || '');
+  const q = query.trim();
+  if (!q) return escaped;
+  try {
+    const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escaped.replace(re, '<mark>$1</mark>');
+  } catch (e) {
+    return escaped;
+  }
+}
+
+function matchScore(faq, q) {
+  if (!q) return 0;
+  const hay = `${faq.question} ${faq.keywords} ${faq.category}`.toLowerCase();
+  const answerHay = (faq.answer || '').toLowerCase();
+  const query = q.toLowerCase();
+  let score = 0;
+  if (faq.question.toLowerCase().includes(query)) score += 10;
+  if ((faq.keywords || '').toLowerCase().split(',').some(k => k.trim() && k.trim().includes(query))) score += 8;
+  if (hay.includes(query)) score += 3;
+  if (answerHay.includes(query)) score += 1;
+  return score;
+}
+
+function renderList(list, query) {
+  const listEl = document.getElementById('faq-list');
+  const meta = document.getElementById('faq-result-meta');
+  const titleEl = document.getElementById('faq-list-title');
+
+  titleEl.textContent = query ? `"${query}" 검색 결과` : (activeCategory ? `${activeCategory} 관련 질문` : '전체 질문');
+  meta.textContent = list.length ? `${list.length}개의 질문을 찾았습니다.` : '일치하는 질문이 없습니다.';
+
+  if (!list.length) {
+    listEl.innerHTML = `
+      <div class="empty-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        검색어와 일치하는 FAQ가 없어요.<br>
+        다른 키워드로 검색하거나 <a href="https://mkkceo.notion.site/291d3563ac3f811294c4e3d797adebae?v=291d3563ac3f811d830d000cb809af98" target="_blank" rel="noreferrer">원본 Notion FAQ 페이지</a>에서 확인해보세요.
+      </div>`;
+    return;
+  }
+
+  listEl.innerHTML = list.map((faq, idx) => `
+    <article class="faq-item ${query || allOpen ? 'open' : ''}" data-id="${faq.id}">
+      <div class="faq-q" data-toggle="${faq.id}">
+        <div class="q-icon">Q</div>
+        <div class="q-body">
+          <div class="q-cat">${escapeHtml(faq.category || '기타')}</div>
+          <div class="q-text">${highlight(faq.question, query)}</div>
+        </div>
+        <i class="fa-solid fa-chevron-down q-chevron"></i>
+      </div>
+      <div class="faq-a" id="answer-${faq.id}" style="${query || allOpen ? `max-height:600px;` : ''}">
+        <div class="faq-a-inner">
+          <i class="fa-solid fa-reply small muted"></i> ${highlight(faq.answer, query)}
+          <div class="faq-updated"><i class="fa-solid fa-tags"></i> ${escapeHtml((faq.keywords || '').split(',').filter(Boolean).join(' · '))}</div>
+        </div>
+      </div>
+    </article>`).join('');
+
+  listEl.querySelectorAll('.faq-q').forEach(q => {
+    q.addEventListener('click', () => {
+      const item = q.closest('.faq-item');
+      const answer = item.querySelector('.faq-a');
+      const isOpen = item.classList.toggle('open');
+      answer.style.maxHeight = isOpen ? answer.scrollHeight + 40 + 'px' : '0px';
+    });
+  });
+}
+
+function applyFilters() {
+  const query = document.getElementById('faq-search-input').value.trim();
+  document.getElementById('faq-clear-btn').style.display = query ? 'flex' : 'none';
+
+  let list = allFaqs.slice();
+
+  if (activeCategory) {
+    list = list.filter(f => (f.category || '').split(',').map(s => s.trim()).includes(activeCategory));
+  }
+
+  if (query) {
+    list = list
+      .map(f => ({ f, score: matchScore(f, query) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.f);
+  } else {
+    list = list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  }
+
+  renderCategoryBar();
+  renderList(list, query);
+}
+
+document.getElementById('faq-search-input').addEventListener('input', () => {
+  document.querySelectorAll('.faq-chip').forEach(b => b.classList.remove('active'));
+  applyFilters();
+});
+document.getElementById('faq-clear-btn').addEventListener('click', () => {
+  document.getElementById('faq-search-input').value = '';
+  document.querySelectorAll('.faq-chip').forEach(b => b.classList.remove('active'));
+  applyFilters();
+  document.getElementById('faq-search-input').focus();
+});
+document.getElementById('faq-expand-all').addEventListener('click', (e) => {
+  allOpen = !allOpen;
+  e.currentTarget.innerHTML = allOpen
+    ? '<i class="fa-solid fa-down-left-and-up-right-to-center"></i> 모두 접기'
+    : '<i class="fa-solid fa-up-right-and-down-left-from-center"></i> 모두 펼치기';
+  document.querySelectorAll('.faq-item').forEach(item => {
+    item.classList.toggle('open', allOpen);
+    const answer = item.querySelector('.faq-a');
+    answer.style.maxHeight = allOpen ? answer.scrollHeight + 40 + 'px' : '0px';
+  });
+});
+
+async function loadFaqs() {
+  const res = await Api.list('faq', { limit: 1000 });
+  allFaqs = res.data;
+  document.getElementById('faq-total-count').textContent = allFaqs.length;
+  renderChips();
+  applyFilters();
+}
+
+loadFaqs().catch(err => {
+  console.error(err);
+  toast('FAQ 데이터를 불러오지 못했습니다.', 'error');
+  document.getElementById('faq-list').innerHTML = '<div class="empty-box"><i class="fa-solid fa-triangle-exclamation"></i>FAQ 데이터를 불러오지 못했습니다.</div>';
+});
+</script>
+</body>
+</html>

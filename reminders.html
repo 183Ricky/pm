@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>리마인더 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card">
+    <div class="card-head">
+      <div><h2>알림 큐</h2><div class="sub">오토십 · 복용주기 · 후속관리 리마인더</div></div>
+      <button class="btn primary" id="btn-generate"><i class="fa-solid fa-wand-magic-sparkles"></i> 리마인더 생성</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>유형</th><th>예정일</th><th>고객</th><th>PM 번호</th><th>채널</th><th>제목</th><th>상태</th><th></th></tr></thead>
+        <tbody id="reminders-body"><tr><td colspan="8" class="empty">불러오는 중...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/reminders-engine.js"></script>
+<script>
+mountLayout({ activeKey: 'reminders', title: '리마인더', subtitle: '발송 대기중인 알림을 확인하고 처리합니다.' });
+
+function reminderKindBadge(row) {
+  const map = {
+    autoship: ['b-amber', 'fa-rotate', '오토십'],
+    daily_intake: ['b-indigo', 'fa-pills', '복용알림'],
+    repurchase: ['b-cyan', 'fa-cart-arrow-down', '재구매'],
+    followup: ['b-gray', 'fa-user-clock', '후속관리'],
+  };
+  const key = row.kind || (row.source_type === 'subscription' ? 'autoship' : row.source_type === 'customer_followup' ? 'followup' : 'repurchase');
+  const [cls, icon, label] = map[key] || ['b-gray', 'fa-bell', '알림'];
+  return `<span class="badge ${cls}"><i class="fa-solid ${icon}"></i> ${label}</span>`;
+}
+
+async function loadReminders() {
+  const res = await Api.list('notification_queue', { limit: 1000 });
+  const rows = res.data.slice().sort((a, b) => (toTs(a.scheduled_at) || 0) - (toTs(b.scheduled_at) || 0));
+  document.getElementById('reminders-body').innerHTML = rows.length ? rows.map(row => `
+    <tr>
+      <td>${reminderKindBadge(row)}</td>
+      <td>${fmtDate(row.scheduled_at)}</td>
+      <td>${escapeHtml(row.customer_name)}</td>
+      <td>${escapeHtml(row.pm_member_no)}</td>
+      <td>${channelLabel(row.channel)}</td>
+      <td>${escapeHtml(row.title)}</td>
+      <td>${sendStatusBadge(row.send_status)}</td>
+      <td>${row.send_status !== 'sent' ? `<button class="btn small" onclick="markSent('${row.id}')"><i class="fa-solid fa-check"></i> 발송완료 처리</button>` : ''}</td>
+    </tr>`).join('') : emptyRow(8, '생성된 알림이 없습니다.', 'fa-bell-slash');
+}
+
+async function markSent(id) {
+  await Api.update('notification_queue', id, { send_status: 'sent' });
+  toast('발송 완료 처리되었습니다.');
+  loadReminders();
+}
+
+document.getElementById('btn-generate').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 생성 중...';
+  try {
+    const created = await generateReminders();
+    toast(`리마인더 ${created}건이 생성되었습니다.`);
+    await loadReminders();
+  } catch (err) {
+    console.error(err);
+    toast('리마인더 생성 중 오류가 발생했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> 리마인더 생성';
+  }
+});
+
+loadReminders().catch(err => { console.error(err); toast('리마인더를 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

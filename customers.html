@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고객관리 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card">
+    <div class="card-head responsive-head">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="search-input" placeholder="PM 번호 / 이름 / 전화번호 검색">
+      </div>
+      <a class="btn primary" href="customer-form.html"><i class="fa-solid fa-user-plus"></i> 신규 고객 등록</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>PM 고유번호</th>
+            <th>고객명</th>
+            <th>전화번호</th>
+            <th>가입일</th>
+            <th>다음 후속일</th>
+            <th>상태</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="customers-body"><tr><td colspan="7" class="empty">불러오는 중...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/ui.js"></script>
+<script>
+mountLayout({ activeKey: 'customers', title: '고객관리', subtitle: '전체 고객을 검색하고 관리합니다.' });
+
+let allCustomers = [];
+
+function renderCustomers(list) {
+  const body = document.getElementById('customers-body');
+  body.innerHTML = list.length ? list.map(row => `
+    <tr>
+      <td><strong>${escapeHtml(row.pm_member_no)}</strong></td>
+      <td>${escapeHtml(row.customer_name)}</td>
+      <td>${escapeHtml(row.phone_number) || '-'}</td>
+      <td>${fmtDate(row.joined_pm_at)}</td>
+      <td>${fmtDate(row.next_followup_at)}</td>
+      <td>${customerStatusBadge(row.status)}</td>
+      <td><a href="customer-detail.html?id=${row.id}">상세 <i class="fa-solid fa-chevron-right small"></i></a></td>
+    </tr>`).join('') : emptyRow(7, '등록된 고객이 없습니다.', 'fa-user-slash');
+}
+
+async function loadCustomers() {
+  const res = await Api.list('customers', { limit: 1000 });
+  allCustomers = res.data.slice().sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+  renderCustomers(allCustomers);
+}
+
+document.getElementById('search-input').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return renderCustomers(allCustomers);
+  const filtered = allCustomers.filter(c =>
+    (c.pm_member_no || '').toLowerCase().includes(q) ||
+    (c.customer_name || '').toLowerCase().includes(q) ||
+    (c.phone_number || '').toLowerCase().includes(q));
+  renderCustomers(filtered);
+});
+
+loadCustomers().catch(err => { console.error(err); toast('고객 목록을 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>

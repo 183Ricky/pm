@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>상품관리 · PM CRM Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell">
+  <section class="card section-gap">
+    <div class="card-head responsive-head">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="search-input" placeholder="상품명 / 카테고리 검색">
+      </div>
+      <button class="btn primary" id="btn-open-create"><i class="fa-solid fa-plus"></i> 상품 추가</button>
+    </div>
+    <div class="product-grid" id="product-grid">
+      <div class="empty-box" style="grid-column:1/-1;">불러오는 중...</div>
+    </div>
+  </section>
+</div>
+
+<!-- 상품 등록/수정 모달 -->
+<div class="modal-backdrop" id="product-modal-backdrop" onclick="if(event.target===this) closeProductModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="product-modal-title">상품 추가</h3>
+      <button class="modal-close" onclick="closeProductModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="product-form" class="form-grid two-col compact">
+      <input type="hidden" name="id">
+      <label class="field"><span>카테고리 <span class="req">*</span></span><input type="text" name="category" required placeholder="건강영양 / 비즈니스팩"></label>
+      <label class="field"><span>유형</span>
+        <select name="item_type">
+          <option value="PRODUCT">상품 (PRODUCT)</option>
+          <option value="PACKAGE">패키지 (PACKAGE)</option>
+          <option value="AUTOSHIP_PLAN">오토십 플랜 (AUTOSHIP_PLAN)</option>
+        </select>
+      </label>
+      <label class="field full-col"><span>상품명 <span class="req">*</span></span><input type="text" name="item_name" required></label>
+      <label class="field full-col"><span>상품 이미지 URL</span><input type="text" name="image_url" placeholder="images/product-xxx.jpg 또는 https://..."></label>
+      <label class="field"><span>소비자가</span><input type="number" name="consumer_price" min="0"></label>
+      <label class="field"><span>회원가</span><input type="number" name="member_price" min="0"></label>
+      <label class="field"><span>오토십가</span><input type="number" name="autoship_price" min="0"></label>
+      <label class="field"><span>기본 주기일수</span><input type="number" name="cycle_days" value="30" min="1"></label>
+      <label class="field"><span>오토십 가능</span><select name="is_autoship_eligible"><option value="0">아니오</option><option value="1">예</option></select></label>
+      <label class="field full-col"><span>메모</span><input type="text" name="source_note"></label>
+      <div class="full-col form-actions">
+        <button type="submit" class="btn primary" id="product-submit-btn"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+        <button type="button" class="btn" onclick="closeProductModal()">취소</button>
+        <button type="button" class="btn danger" id="product-delete-btn" style="margin-left:auto;display:none;"><i class="fa-solid fa-trash"></i> 삭제</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/ui.js"></script>
+<script>
+mountLayout({ activeKey: 'products', title: '상품관리', subtitle: 'PM International 공식 상품 카탈로그를 관리합니다.' });
+
+let allProducts = [];
+const form = document.getElementById('product-form');
+
+function priceTypeLine(p) {
+  const parts = [];
+  if (p.member_price) parts.push(`회원가 ${krw(p.member_price)}`);
+  if (p.autoship_price) parts.push(`오토십가 ${krw(p.autoship_price)}`);
+  return parts.join(' · ');
+}
+
+function renderProducts(list) {
+  const grid = document.getElementById('product-grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty-box" style="grid-column:1/-1;"><i class="fa-solid fa-box-open"></i>상품이 없습니다.</div>';
+    return;
+  }
+  grid.innerHTML = list.map(p => `
+    <div class="product-card">
+      <div class="thumb">
+        <span class="type-tag">${itemTypeBadgeText(p.item_type)}</span>
+        ${p.image_url ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.item_name)}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-image no-image\\'></i>'">` : '<i class="fa-solid fa-image no-image"></i>'}
+      </div>
+      <div class="body">
+        <div class="cat">${escapeHtml(p.category)}</div>
+        <div class="name">${escapeHtml(p.item_name)}</div>
+        <div class="price-row">
+          <span class="main-price">${p.consumer_price ? krw(p.consumer_price) : '가격 미정'}</span>
+        </div>
+        <div class="price-sub">${priceTypeLine(p) || '&nbsp;'}</div>
+        ${p.is_autoship_eligible ? '<span class="badge b-cyan" style="width:fit-content;"><i class="fa-solid fa-rotate"></i> 오토십 가능</span>' : ''}
+      </div>
+      <div class="actions">
+        <button class="btn small" onclick="openEditModal('${p.id}')"><i class="fa-solid fa-pen"></i> 수정</button>
+      </div>
+    </div>`).join('');
+}
+
+function itemTypeBadgeText(type) {
+  const map = { PRODUCT: '상품', PACKAGE: '패키지', AUTOSHIP_PLAN: '오토십' };
+  return map[type] || type;
+}
+
+async function loadProducts() {
+  const res = await Api.list('products', { limit: 1000 });
+  allProducts = res.data.slice().sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.item_name || '').localeCompare(b.item_name || ''));
+  renderProducts(allProducts);
+}
+
+document.getElementById('search-input').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return renderProducts(allProducts);
+  renderProducts(allProducts.filter(p => (p.item_name || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q)));
+});
+
+function resetForm() {
+  form.reset();
+  form.id.value = '';
+  form.cycle_days.value = 30;
+  form.item_type.value = 'PRODUCT';
+  form.is_autoship_eligible.value = '0';
+  document.getElementById('product-delete-btn').style.display = 'none';
+}
+
+document.getElementById('btn-open-create').addEventListener('click', () => {
+  resetForm();
+  document.getElementById('product-modal-title').textContent = '상품 추가';
+  openModal('product-modal-backdrop');
+});
+
+function openEditModal(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  resetForm();
+  form.id.value = p.id;
+  form.category.value = p.category || '';
+  form.item_type.value = p.item_type || 'PRODUCT';
+  form.item_name.value = p.item_name || '';
+  form.image_url.value = p.image_url || '';
+  form.consumer_price.value = p.consumer_price || '';
+  form.member_price.value = p.member_price || '';
+  form.autoship_price.value = p.autoship_price || '';
+  form.cycle_days.value = p.cycle_days || 30;
+  form.is_autoship_eligible.value = p.is_autoship_eligible ? '1' : '0';
+  form.source_note.value = p.source_note || '';
+  document.getElementById('product-modal-title').textContent = '상품 수정';
+  document.getElementById('product-delete-btn').style.display = 'inline-flex';
+  document.getElementById('product-delete-btn').onclick = () => deleteProduct(p.id);
+  openModal('product-modal-backdrop');
+}
+
+function closeProductModal() { closeModal('product-modal-backdrop'); }
+
+async function deleteProduct(id) {
+  if (!confirm('이 상품을 삭제하시겠습니까?')) return;
+  try {
+    await Api.remove('products', id);
+    toast('상품이 삭제되었습니다.');
+    closeProductModal();
+    loadProducts();
+  } catch (err) {
+    console.error(err);
+    toast('삭제 중 오류가 발생했습니다.', 'error');
+  }
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('product-submit-btn');
+  btn.disabled = true;
+  const payload = {
+    category: form.category.value.trim(),
+    item_type: form.item_type.value,
+    item_name: form.item_name.value.trim(),
+    image_url: form.image_url.value.trim(),
+    consumer_price: parseInt(form.consumer_price.value, 10) || 0,
+    member_price: form.member_price.value ? parseInt(form.member_price.value, 10) : null,
+    autoship_price: form.autoship_price.value ? parseInt(form.autoship_price.value, 10) : null,
+    cycle_days: form.cycle_days.value ? parseInt(form.cycle_days.value, 10) : null,
+    is_autoship_eligible: form.is_autoship_eligible.value === '1',
+    source_note: form.source_note.value.trim(),
+  };
+  try {
+    if (form.id.value) {
+      await Api.update('products', form.id.value, payload);
+      toast('상품이 수정되었습니다.');
+    } else {
+      await Api.create('products', payload);
+      toast('상품이 추가되었습니다.');
+    }
+    closeProductModal();
+    await loadProducts();
+  } catch (err) {
+    console.error(err);
+    toast('저장 중 오류가 발생했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+loadProducts().catch(err => { console.error(err); toast('상품 목록을 불러오지 못했습니다.', 'error'); });
+</script>
+</body>
+</html>
